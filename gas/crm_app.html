@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><?= orgName ?></title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #eef4f7; color: #333; }
+
+  .header { background: #0a2d6e; color: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .header-title { font-size: 18px; font-weight: 700; }
+  .header-user { font-size: 12px; opacity: 0.8; }
+
+  .stats-bar { background: #fff; border-bottom: 1px solid #dde; padding: 10px 24px; display: flex; gap: 24px; flex-wrap: wrap; }
+  .stat { display: flex; flex-direction: column; align-items: center; min-width: 100px; }
+  .stat-value { font-size: 22px; font-weight: 700; color: #0a2d6e; line-height: 1; }
+  .stat-label { font-size: 11px; color: #888; margin-top: 3px; text-align: center; }
+  .stat-new   { font-size: 11px; color: #1a7a3a; font-weight: 600; margin-top: 1px; }
+  .stat-divider { width: 1px; background: #eee; margin: 4px 0; }
+  .layout { display: flex; height: calc(100vh - 94px); }
+  .sidebar { width: 400px; background: #fff; border-right: 1px solid #dde; display: flex; flex-direction: column; flex-shrink: 0; }
+  .main { flex: 1; overflow-y: auto; padding: 24px; }
+
+  .search-box { padding: 14px; border-bottom: 1px solid #eee; }
+  .search-row { display: flex; gap: 8px; }
+  .search-input { flex: 1; padding: 9px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+
+  .btn { padding: 9px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .btn-primary   { background: #0a2d6e; color: #fff; }
+  .btn-primary:hover   { background: #0d3a8a; }
+  .btn-success   { background: #1a7a3a; color: #fff; }
+  .btn-success:hover   { background: #145f2d; }
+  .btn-danger    { background: #c0392b; color: #fff; }
+  .btn-danger:hover    { background: #a93226; }
+  .btn-secondary { background: #eee; color: #333; }
+  .btn-secondary:hover { background: #ddd; }
+
+  .results { flex: 1; overflow-y: auto; }
+  .result-item { padding: 12px 14px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+  .result-item:hover { background: #f5f8ff; }
+  .result-item.active { background: #e8effe; border-left: 3px solid #0a2d6e; }
+  .result-name  { font-weight: 600; font-size: 14px; }
+  .result-meta  { font-size: 12px; color: #888; margin-top: 2px; }
+  .result-group { font-size: 11px; color: #0a2d6e; margin-top: 3px; }
+  .no-results   { padding: 24px; text-align: center; color: #aaa; font-size: 14px; }
+
+  .add-bar { padding: 12px 14px; border-top: 1px solid #eee; }
+
+  .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); padding: 28px; max-width: 100%; }
+  .card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
+  .card-name { font-size: 22px; font-weight: 700; color: #0a2d6e; }
+  .card-sub  { font-size: 14px; color: #888; margin-top: 3px; }
+  .card-actions { display: flex; gap: 8px; flex-shrink: 0; margin-left: 16px; }
+
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; margin-bottom: 20px; }
+  .field { display: flex; flex-direction: column; }
+  .field label { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .field span  { font-size: 14px; color: #333; }
+  .field input, .field select { padding: 8px 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+
+  .section-title { font-size: 12px; font-weight: 700; color: #0a2d6e; text-transform: uppercase; letter-spacing: 0.5px; margin: 20px 0 10px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+
+  .group-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+  .group-cb { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+  .group-cb input { cursor: pointer; }
+
+  .system-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .sys-field .sys-label { font-size: 11px; color: #aaa; margin-bottom: 2px; }
+  .sys-field .sys-val   { font-size: 13px; color: #555; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .badge-subscribed   { background: #d4edda; color: #155724; }
+  .badge-unsubscribed { background: #f8d7da; color: #721c24; }
+  .badge-blank        { background: #e2e3e5; color: #555; }
+
+  .empty-state { text-align: center; padding: 80px 40px; color: #aaa; }
+  .empty-state h3 { font-size: 18px; margin-bottom: 8px; color: #bbb; }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; color: #fff; padding: 12px 20px; border-radius: 6px; font-size: 14px; display: none; z-index: 999; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 998; }
+  .overlay.show { display: flex; }
+  .confirm-box { background: #fff; border-radius: 8px; padding: 28px; max-width: 360px; width: 90%; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+  .confirm-box h3 { margin-bottom: 12px; color: #c0392b; }
+  .confirm-box p  { font-size: 14px; color: #555; margin-bottom: 20px; }
+  .confirm-actions { display: flex; gap: 10px; justify-content: center; }
+
+  @media (max-width: 700px) {
+    .layout { flex-direction: column; }
+    .sidebar { width: 100%; height: 260px; }
+    .field-grid { grid-template-columns: 1fr; }
+    .group-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <? if (logoUrl) { ?>
+      <img src="<?= logoUrl ?>" alt="<?= orgName ?>" style="height:28px;max-width:150px;object-fit:contain;">
+    <? } ?>
+    <div class="header-title"><?= orgName ?></div>
+  </div>
+  <div style="text-align:right;">
+    <div class="header-user"><?= userEmail ?></div>
+    <? if (showCredit) { ?>
+      <div style="font-size:10px;color:#999;margin-top:2px;">
+        Crafted with <a href="https://harborpress.net" target="_blank" style="color:#999;">HarborPress</a>
+      </div>
+    <? } ?>
+  </div>
+</div>
+
+<div class="stats-bar" id="statsBar">
+  <div class="stat"><div class="stat-value" id="s_total">--</div><div class="stat-label">Total Contacts</div></div>
+  <div class="stat-divider"></div>
+  <div class="stat"><div class="stat-value" id="s_subscribed">--</div><div class="stat-label">Newsletter Subscribers</div><div class="stat-new" id="s_subscribed_new"></div></div>
+  <div class="stat-divider"></div>
+  <div class="stat"><div class="stat-value" id="s_donors">--</div><div class="stat-label">Donors</div><div class="stat-new" id="s_donors_new"></div></div>
+  <div class="stat-divider"></div>
+  <div class="stat"><div class="stat-value" id="s_unsubscribed">--</div><div class="stat-label">Unsubscribed</div></div>
+  <div style="flex:1"></div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button class="btn btn-secondary" onclick="downloadCSV('all')" title="All fields">&#11123; Full CSV</button>
+    <button class="btn btn-secondary" onclick="downloadCSV('namemail')" title="Name and email only">&#11123; Name &amp; Email</button>
+    <button class="btn btn-success" onclick="showAddForm()">+ Add Contact</button>
+  </div>
+</div>
+
+<div class="layout">
+
+  <div class="sidebar">
+    <div class="search-box">
+      <div class="search-row">
+        <input class="search-input" id="searchInput" placeholder="Name, email, group…" onkeydown="if(event.key==='Enter') doSearch()">
+        <button class="btn btn-primary" onclick="doSearch()">Go</button>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+        <select id="eventFilter" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;" onchange="doEventFilter()">
+          <option value="">-- Filter by event --</option>
+        </select>
+        <button class="btn btn-secondary" onclick="clearEventFilter()" style="font-size:12px;padding:7px 10px;">Clear</button>
+      </div>
+    </div>
+    <div style="padding:6px 14px;font-size:12px;color:#888;border-bottom:1px solid #eee;min-height:24px;" id="resultCount"></div>
+    <div class="results" id="results">
+      <div class="no-results">Loading…</div>
+    </div>
+
+  </div>
+
+  <div class="main" id="main">
+    <div class="empty-state">
+      <h3><?= orgName ?></h3>
+      <p>Search for a contact or add a new one.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="overlay">
+  <div class="confirm-box">
+    <h3>Delete Contact?</h3>
+    <p id="confirmMsg"></p>
+    <div class="confirm-actions">
+      <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+      <button class="btn btn-secondary" onclick="closeConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var GROUPS = <?!= groups ?>;
+var ORG_NAME = '<?= orgName ?>';
+var ORG_SHORT_CODE = '<?= orgShortCode ?>';
+var currentContact = null;
+var pendingDelete  = null;
+var currentResults = [];
+
+// ── SEARCH ──────────────────────────────────────────────────
+function doSearch() {
+  var q  = document.getElementById('searchInput').value.trim();
+  var ev = document.getElementById('eventFilter') ? document.getElementById('eventFilter').value : '';
+  setResults('<div class="no-results">Searching…</div>');
+  google.script.run
+    .withSuccessHandler(renderResults)
+    .withFailureHandler(function(e) { setResults('<div class="no-results" style="color:#c00">' + e.message + '</div>'); })
+    .searchContacts(q, ev);
+}
+
+function doEventFilter() {
+  var ev = document.getElementById('eventFilter').value;
+  var q  = document.getElementById('searchInput').value.trim();
+  setResults('<div class="no-results">Searching…</div>');
+  google.script.run
+    .withSuccessHandler(renderResults)
+    .withFailureHandler(function(e) { setResults('<div class="no-results" style="color:#c00">' + e.message + '</div>'); })
+    .searchContacts(q, ev);
+}
+
+function clearEventFilter() {
+  document.getElementById('eventFilter').value = '';
+  doSearch();
+}
+
+function loadEvents() {
+  google.script.run
+    .withSuccessHandler(function(events) {
+      var sel = document.getElementById('eventFilter');
+      for (var i = 0; i < events.length; i++) {
+        var opt = document.createElement('option');
+        opt.value = events[i];
+        opt.textContent = events[i];
+        sel.appendChild(opt);
+      }
+    })
+    .getEvents();
+}
+
+function renderResults(list) {
+  currentResults = list || [];
+  if (!list || list.length === 0) {
+    document.getElementById('resultCount').textContent = 'No contacts found.';
+    setResults('');
+    return;
+  }
+  var countText = list.length + ' contact' + (list.length !== 1 ? 's' : '') + ' found';
+  document.getElementById('resultCount').textContent = countText;
+  var html = '';
+  for (var i = 0; i < list.length; i++) {
+    var c = list[i];
+    html += '<div class="result-item" id="ri' + c.rowIndex + '" onclick="loadContact(' + c.rowIndex + ')">';
+    html += '<div class="result-name">' + esc(c.prefix ? c.prefix + ' ' : '') + esc(c.firstName) + ' ' + esc(c.lastName) + '</div>';
+    html += '<div class="result-meta">'  + esc(c.email) + (c.company ? ' &middot; ' + esc(c.company) : '') + '</div>';
+    html += '<div class="result-group">' + (c.group ? esc(c.group) : '<em style="color:#bbb">No group</em>') + '</div>';
+    html += '</div>';
+  }
+  setResults(html);
+}
+
+function setResults(html) {
+  document.getElementById('results').innerHTML = html;
+}
+
+// ── LOAD CONTACT ────────────────────────────────────────────
+function loadContact(rowIndex) {
+  clearActive();
+  var el = document.getElementById('ri' + rowIndex);
+  if (el) el.classList.add('active');
+  google.script.run
+    .withSuccessHandler(renderCard)
+    .withFailureHandler(function(e) { toast(e.message, true); })
+    .getContact(rowIndex);
+}
+
+function renderCard(c) {
+  currentContact = c;
+  var badge = c.status === 'subscribed'
+    ? '<span class="badge badge-subscribed">subscribed</span>'
+    : c.status === 'unsubscribed'
+    ? '<span class="badge badge-unsubscribed">unsubscribed</span>'
+    : '<span class="badge badge-blank">—</span>';
+
+  setMain(
+    '<div class="card">' +
+    '<div class="card-header">' +
+      '<div>' +
+        '<div class="card-name">' + esc((c.prefix ? c.prefix + ' ' : '') + c.firstName + ' ' + c.lastName) + '</div>' +
+        '<div class="card-sub">'  + esc([c.company, c.jobTitle].filter(Boolean).join(' · ')) + '</div>' +
+      '</div>' +
+      '<div class="card-actions">' +
+        '<button class="btn btn-primary" onclick="showEditForm()">Edit</button>' +
+        '<button class="btn btn-danger"  onclick="askDelete()">Delete</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="field-grid">' +
+      field('Email',    c.email) +
+      field('Phone',    c.phone || '—') +
+      field('Zip Code', c.zipcode || '—') +
+      '<div class="field"><label>Status</label><span>' + badge + '</span></div>' +
+    '</div>' +
+    '<div class="section-title">Groups</div>' +
+    '<div style="font-size:14px;margin-bottom:16px">' + (c.group ? esc(c.group) : '<em style="color:#bbb">None</em>') + '</div>' +
+    '<div class="section-title">Events</div>' +
+    '<div style="font-size:14px;margin-bottom:16px">' + (c.events ? esc(c.events) : '<em style="color:#bbb">None</em>') + '</div>' +
+    '<div class="section-title">System Info</div>' +
+    '<div class="system-grid">' +
+      sysField('Date Added',        c.dateAdded) +
+      sysField('Date Unsubscribed', c.dateUnsub) +
+      sysField('Last Issue',        c.lastIssue) +
+      sysField('Last Sent',         c.lastSent) +
+    '</div>' +
+    '</div>'
+  );
+}
+
+function field(label, value) {
+  return '<div class="field"><label>' + label + '</label><span>' + esc(value) + '</span></div>';
+}
+
+function sysField(label, value) {
+  return '<div class="sys-field"><div class="sys-label">' + label + '</div><div class="sys-val">' + esc(value || '—') + '</div></div>';
+}
+
+// ── FORM ────────────────────────────────────────────────────
+function showAddForm() {
+  currentContact = null;
+  clearActive();
+  renderForm(null);
+}
+
+function showEditForm() {
+  if (currentContact) renderForm(currentContact);
+}
+
+function renderForm(c) {
+  var isNew = !c;
+
+  var prefixOpts = ['', 'Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.', 'Rev.'].map(function(p) {
+    return '<option value="' + p + '"' + (c && c.prefix === p ? ' selected' : '') + '>' + (p || '—') + '</option>';
+  }).join('');
+
+  var statusOpts = ['', 'subscribed', 'unsubscribed'].map(function(s) {
+    return '<option value="' + s + '"' + (c && c.status === s ? ' selected' : '') + '>' + (s || '— none —') + '</option>';
+  }).join('');
+
+  var selectedGroups = c ? c.group.split(',').map(function(g) { return g.trim(); }) : [];
+  var groupHtml = GROUPS.map(function(g) {
+    return '<label class="group-cb"><input type="checkbox" class="grpCb" value="' + g + '"' + (selectedGroups.indexOf(g) > -1 ? ' checked' : '') + '> ' + g + '</label>';
+  }).join('');
+
+  setMain(
+    '<div class="card">' +
+    '<div class="card-header">' +
+      '<div class="card-name">' + (isNew ? 'New Contact' : 'Edit Contact') + '</div>' +
+      '<div class="card-actions">' +
+        '<button class="btn btn-success"   onclick="saveContact()">Save</button>' +
+        '<button class="btn btn-secondary" onclick="cancelForm()">Cancel</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="field-grid">' +
+      fInput('Prefix',     'f_prefix',    'select', prefixOpts) +
+      fInput('First Name *','f_firstName', 'text',  '', c ? c.firstName : '') +
+      fInput('Last Name',  'f_lastName',  'text',   '', c ? c.lastName  : '') +
+      fInput('Company',    'f_company',   'text',   '', c ? c.company   : '') +
+      fInput('Job Title',  'f_jobTitle',  'text',   '', c ? c.jobTitle  : '') +
+      fInput('Email *',    'f_email',     'email',  '', c ? c.email     : '') +
+      fInput('Phone',      'f_phone',     'text',   '', c ? c.phone     : '') +
+      fInput('Zip Code',   'f_zipcode',   'text',   '', c ? c.zipcode   : '') +
+      fInput('Status',     'f_status',    'select', statusOpts) +
+      fInput('Events',     'f_events',    'text',   '', c ? c.events    : '') +
+    '</div>' +
+    '<div class="section-title">Groups</div>' +
+    '<div class="group-grid">' + groupHtml + '</div>' +
+    '</div>'
+  );
+}
+
+function fInput(label, id, type, options, value) {
+  var input = type === 'select'
+    ? '<select id="' + id + '">' + options + '</select>'
+    : '<input id="' + id + '" type="' + type + '" value="' + esc(value || '') + '">';
+  return '<div class="field"><label>' + label + '</label>' + input + '</div>';
+}
+
+function cancelForm() {
+  if (currentContact) renderCard(currentContact);
+  else setMain('<div class="empty-state"><h3>' + esc(ORG_NAME) + '</h3><p>Search for a contact or add a new one.</p></div>');
+}
+
+// ── SAVE ────────────────────────────────────────────────────
+function saveContact() {
+  var firstName = document.getElementById('f_firstName').value.trim();
+  var email     = document.getElementById('f_email').value.trim();
+  if (!firstName) { toast('First Name is required.', true); return; }
+  if (!email)     { toast('Email is required.', true); return; }
+
+  var cbs = document.querySelectorAll('.grpCb:checked');
+  var groups = [];
+  for (var i = 0; i < cbs.length; i++) groups.push(cbs[i].value);
+
+  var contact = {
+    rowIndex:  currentContact ? currentContact.rowIndex : null,
+    prefix:    document.getElementById('f_prefix').value,
+    firstName: firstName,
+    lastName:  document.getElementById('f_lastName').value.trim(),
+    company:   document.getElementById('f_company').value.trim(),
+    jobTitle:  document.getElementById('f_jobTitle').value.trim(),
+    email:     email,
+    phone:     document.getElementById('f_phone').value.trim(),
+    zipcode:   document.getElementById('f_zipcode').value.trim(),
+    group:     groups.join(', '),
+    events:    document.getElementById('f_events').value.trim(),
+    status:    document.getElementById('f_status').value,
+    dateAdded: currentContact ? currentContact.dateAdded : '',
+    dateUnsub: currentContact ? currentContact.dateUnsub : '',
+    lastIssue: currentContact ? currentContact.lastIssue : '',
+    lastSent:  currentContact ? currentContact.lastSent  : ''
+  };
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      toast('Saved.');
+      google.script.run
+        .withSuccessHandler(function(c) { currentContact = c; renderCard(c); })
+        .getContact(res.rowIndex);
+      doSearch();
+    })
+    .withFailureHandler(function(e) { toast(e.message, true); })
+    .saveContact(contact);
+}
+
+// ── DELETE ──────────────────────────────────────────────────
+function askDelete() {
+  if (!currentContact) return;
+  pendingDelete = currentContact.rowIndex;
+  var name = currentContact.firstName + ' ' + currentContact.lastName;
+  document.getElementById('confirmMsg').textContent = 'Delete ' + name + '? This cannot be undone.';
+  document.getElementById('overlay').classList.add('show');
+}
+
+function closeConfirm() {
+  document.getElementById('overlay').classList.remove('show');
+  pendingDelete = null;
+}
+
+function confirmDelete() {
+  if (!pendingDelete) return;
+  google.script.run
+    .withSuccessHandler(function() {
+      closeConfirm();
+      toast('Contact deleted.');
+      currentContact = null;
+      setMain('<div class="empty-state"><h3>Contact deleted.</h3></div>');
+      doSearch();
+    })
+    .withFailureHandler(function(e) { closeConfirm(); toast(e.message, true); })
+    .deleteContact(pendingDelete);
+}
+
+// ── UTILS ───────────────────────────────────────────────────
+function setMain(html) {
+  document.getElementById('main').innerHTML = html;
+}
+
+function clearActive() {
+  var items = document.querySelectorAll('.result-item');
+  for (var i = 0; i < items.length; i++) items[i].classList.remove('active');
+}
+
+function toast(msg, isErr) {
+  var t = document.getElementById('toast');
+  t.textContent     = msg;
+  t.style.background = isErr ? '#c0392b' : '#1a7a3a';
+  t.style.display    = 'block';
+  setTimeout(function() { t.style.display = 'none'; }, 3000);
+}
+
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function loadStats() {
+  google.script.run
+    .withSuccessHandler(function(s) {
+      document.getElementById('s_total').textContent       = s.total;
+      document.getElementById('s_subscribed').textContent  = s.subscribed;
+      document.getElementById('s_donors').textContent      = s.donors;
+      document.getElementById('s_unsubscribed').textContent = s.unsubscribed;
+      if (s.subscribedNew > 0) document.getElementById('s_subscribed_new').textContent = '+' + s.subscribedNew + ' in 30 days';
+      if (s.donorsNew > 0)     document.getElementById('s_donors_new').textContent     = '+' + s.donorsNew     + ' in 30 days';
+    })
+    .getStats();
+}
+
+function downloadCSV(mode) {
+  if (!currentResults || currentResults.length === 0) {
+    toast('No results to download.', true);
+    return;
+  }
+  var headers = mode === 'namemail'
+    ? ['First Name', 'Last Name', 'Email']
+    : ['Prefix','First Name','Last Name','Company','Job Title','Email','Phone','Zip Code','Group','Events','Status','Date Added','Date Unsubscribed','Last Issue','Last Sent'];
+  var rows = [headers];
+  for (var i = 0; i < currentResults.length; i++) {
+    var c = currentResults[i];
+    if (mode === 'namemail') {
+      rows.push([c.firstName, c.lastName, c.email]);
+    } else {
+      rows.push([
+        c.prefix, c.firstName, c.lastName, c.company, c.jobTitle,
+        c.email, c.phone, c.zipcode, c.group, c.events, c.status,
+        c.dateAdded, c.dateUnsub || '', c.lastIssue, c.lastSent
+      ]);
+    }
+  }
+  var csv = rows.map(function(row) {
+    return row.map(function(cell) {
+      var val = String(cell || '').replace(/"/g, '""');
+      return val.indexOf(',') > -1 || val.indexOf('"') > -1 || val.indexOf('\n') > -1
+        ? '"' + val + '"' : val;
+    }).join(',');
+  }).join('\n');
+
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  var ev   = document.getElementById('eventFilter') ? document.getElementById('eventFilter').value : '';
+  var q    = ev || document.getElementById('searchInput').value.trim();
+  var suffix = (mode === 'namemail') ? '_name_email' : '_full';
+  a.href     = url;
+  a.download = ORG_SHORT_CODE + '_crm_' + (q ? q.replace(/\s+/g, '_') : 'all') + suffix + '_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+window.onload = function() { doSearch(); loadStats(); loadEvents(); };
+</script>
+</body>
+</html>

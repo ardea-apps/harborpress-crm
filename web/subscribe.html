@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Join our Mailing List</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; text-align: center; padding: 40px 20px; color: #333; background: #f9f9f9; }
+  h2 { color: #0147a2; margin-bottom: 8px; }
+  .container { max-width: 480px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  img.logo { width: 180px; margin-bottom: 24px; }
+  p.intro { color: #555; margin-bottom: 20px; }
+  label { display: block; text-align: left; font-size: 14px; margin-top: 14px; margin-bottom: 4px; font-weight: bold; }
+  input[type=text], input[type=email], input[type=tel] {
+    width: 100%; padding: 10px; font-size: 15px; border: 1px solid #ccc;
+    border-radius: 4px; box-sizing: border-box;
+  }
+  .optional { font-weight: normal; color: #888; font-size: 12px; }
+  .btn-submit {
+    background: #0147a2; color: #fff; border: none;
+    padding: 12px 30px; font-size: 16px; border-radius: 6px;
+    cursor: pointer; margin-top: 24px; width: 100%;
+  }
+  .btn-submit:hover { background: #013a82; }
+  .btn-submit:disabled { opacity: 0.6; cursor: default; }
+  .errors { background: #fff3f3; border: 1px solid #f5c6cb; border-radius: 4px; padding: 12px; margin-bottom: 16px; text-align: left; color: #721c24; display: none; }
+  .errors ul { margin: 0; padding-left: 18px; }
+  .success-message { display: none; }
+  p.note { font-size: 12px; color: #888; margin-top: 16px; }
+  #form-view { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <img class="logo" id="logoImg" src="" alt="" style="display:none;">
+  <div id="form-view">
+    <h2>Join our Mailing List</h2>
+    <p class="intro" id="introText">Stay up to date with our news, events, and community updates.</p>
+    <div class="errors" id="errorBox"><ul id="errorList"></ul></div>
+    <form id="subscribeForm">
+      <label for="first_name">First Name</label>
+      <input type="text" id="first_name" required>
+
+      <label for="last_name">Last Name</label>
+      <input type="text" id="last_name" required>
+
+      <label for="email">Email Address</label>
+      <input type="email" id="email" required>
+
+      <label for="phone">Phone <span class="optional">(optional)</span></label>
+      <input type="tel" id="phone">
+
+      <label for="zipcode">Zip Code <span class="optional">(optional)</span></label>
+      <input type="text" id="zipcode">
+
+      <button type="submit" class="btn-submit" id="submitBtn">Join our Mailing List</button>
+    </form>
+    <p class="note">We respect your privacy. You can unsubscribe at any
+      time. <span id="privacyLink"></span></p>
+  </div>
+
+  <div class="success-message" id="successView">
+    <h2 id="successTitle">Thank You!</h2>
+    <p id="successMessage"></p>
+  </div>
+
+  <div id="creditLine" style="display:none;font-size:11px;color:#aaa;margin-top:20px;">
+    Crafted with <a href="https://harborpress.net" target="_blank" style="color:#aaa;">HarborPress</a>
+  </div>
+</div>
+
+<script>
+  // ------------------------------------------------------------
+  // ONE LINE TO EDIT PER DEPLOYMENT: this organization's deployed
+  // CRM Web App URL (Apps Script → Deploy → Manage Deployments).
+  // ------------------------------------------------------------
+  const CRM_WEB_APP_URL = 'PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE';
+
+  function esc(str) {
+    return String(str || '').replace(/[&<>"']/g, s => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    }[s]));
+  }
+
+  function showErrors(messages) {
+    const box = document.getElementById('errorBox');
+    const list = document.getElementById('errorList');
+    list.innerHTML = messages.map(m => '<li>' + esc(m) + '</li>').join('');
+    box.style.display = 'block';
+  }
+
+  function showSuccess(title, message) {
+    document.getElementById('form-view').style.display = 'none';
+    document.getElementById('successView').style.display = 'block';
+    document.getElementById('successTitle').textContent = title;
+    document.getElementById('successMessage').textContent = message;
+  }
+
+  // Load org branding (name, logo, privacy link) from the CRM backend
+  // so this page never needs per-org edits beyond the URL above.
+  fetch(CRM_WEB_APP_URL + '?action=getOrgInfo')
+    .then(r => r.json())
+    .then(info => {
+      if (info.orgName) {
+        document.title = 'Join our Mailing List — ' + info.orgName;
+        document.getElementById('introText').textContent =
+          'Stay up to date with ' + info.orgName + ' news, events, and community updates.';
+      }
+      if (info.logoUrl) {
+        const img = document.getElementById('logoImg');
+        img.src = info.logoUrl;
+        img.alt = info.orgName || '';
+        img.style.display = 'inline-block';
+      }
+      if (info.privacyUrl) {
+        document.getElementById('privacyLink').innerHTML =
+          'Read our <a href="' + esc(info.privacyUrl) + '" style="color:#0147a2;" target="_blank">Privacy Policy</a>.';
+      }
+      if (info.showCredit !== false) {
+        document.getElementById('creditLine').style.display = 'block';
+      }
+    })
+    .catch(() => { /* branding is best-effort; form still works without it */ })
+    .finally(() => {
+      document.getElementById('form-view').style.display = 'block';
+    });
+
+  document.getElementById('subscribeForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    document.getElementById('errorBox').style.display = 'none';
+
+    const firstName = document.getElementById('first_name').value.trim();
+    const lastName  = document.getElementById('last_name').value.trim();
+    const email     = document.getElementById('email').value.trim();
+    const phone     = document.getElementById('phone').value.trim();
+    const zipcode   = document.getElementById('zipcode').value.trim();
+
+    const errors = [];
+    if (!firstName) errors.push('First name is required.');
+    if (!lastName)  errors.push('Last name is required.');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('A valid email address is required.');
+    if (errors.length) { showErrors(errors); return; }
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting…';
+
+    const url = CRM_WEB_APP_URL + '?action=subscribe'
+      + '&firstName=' + encodeURIComponent(firstName)
+      + '&lastName='  + encodeURIComponent(lastName)
+      + '&email='     + encodeURIComponent(email)
+      + '&phone='     + encodeURIComponent(phone)
+      + '&zipcode='   + encodeURIComponent(zipcode);
+
+    fetch(url)
+      .then(r => r.json())
+      .then(result => {
+        if (result.success && result.message === 'resubscribed') {
+          showSuccess('Welcome Back!', 'You have been resubscribed. You will receive our next issue at ' + email + '.');
+        } else if (result.success) {
+          showSuccess('Thank You!', 'Welcome, ' + firstName + '! You have been added to our newsletter. You will receive our next issue at ' + email + '.');
+        } else if (result.message === 'exists') {
+          showSuccess('Already Subscribed', email + ' is already subscribed to our newsletter.');
+        } else {
+          showErrors([result.message || 'An error occurred. Please try again.']);
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Join our Mailing List';
+        }
+      })
+      .catch(() => {
+        showErrors(['Unable to process your request. Please try again later.']);
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Join our Mailing List';
+      });
+  });
+</script>
+</body>
+</html>

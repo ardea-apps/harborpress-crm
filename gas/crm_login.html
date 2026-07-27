@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><?= orgName ?> — Login</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #eef4f7; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); padding: 48px 40px; width: 380px; text-align: center; }
+  .logo-img { max-width: 220px; max-height: 70px; margin-bottom: 14px; }
+  .logo { color: #0a2d6e; font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .sub { color: #888; font-size: 13px; margin-bottom: 32px; }
+  .btn-google { display: block; width: 100%; padding: 12px; background: #0a2d6e; color: #fff; border: none; border-radius: 6px; font-size: 15px; cursor: pointer; margin-bottom: 20px; }
+  .btn-google:hover { background: #0d3a8a; }
+  .divider { color: #aaa; font-size: 12px; margin-bottom: 20px; }
+  input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-bottom: 12px; }
+  .btn-pw { width: 100%; padding: 11px; background: #555; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+  .btn-pw:hover { background: #333; }
+  .error { color: #c00; font-size: 13px; margin-top: 10px; display: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <? if (logoUrl) { ?>
+    <img class="logo-img" src="<?= logoUrl ?>" alt="<?= orgName ?> logo">
+  <? } else { ?>
+    <div class="logo"><?= orgName ?></div>
+  <? } ?>
+  <div class="sub">CRM Login</div>
+  <button class="btn-google" onclick="window.location.reload()">Sign in with Google</button>
+  <div class="divider">— or use a password —</div>
+  <input type="password" id="pw" placeholder="Password" onkeydown="if(event.key==='Enter') login()">
+  <button class="btn-pw" onclick="login()">Sign In</button>
+  <div class="error" id="err">Incorrect password. Please try again.</div>
+  <? if (showCredit) { ?>
+    <div style="margin-top:24px;font-size:11px;color:#aaa;">
+      Crafted with <a href="https://harborpress.net" target="_blank" style="color:#aaa;">HarborPress</a>
+    </div>
+  <? } ?>
+</div>
+<script>
+function login() {
+  var pw = document.getElementById('pw').value;
+  google.script.run
+    .withSuccessHandler(function(ok) {
+      if (ok) window.location.reload();
+      else document.getElementById('err').style.display = 'block';
+    })
+    .loginWithPassword(pw);
+}
+</script>
+</body>
+</html>
+

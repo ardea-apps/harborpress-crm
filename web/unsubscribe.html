@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unsubscribe</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; text-align: center; padding: 60px 20px; color: #333; background: #f9f9f9; }
+  h2 { color: #0147a2; margin-bottom: 14px; }
+  a { color: #0147a2; }
+  .container { max-width: 500px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  img.logo { width: 180px; margin-bottom: 24px; }
+  .btn-confirm {
+    background: #0147a2; color: #fff; border: none;
+    padding: 12px 30px; font-size: 16px; border-radius: 6px;
+    cursor: pointer; margin-top: 20px;
+  }
+  .btn-confirm:hover { background: #013a82; }
+  .btn-confirm:disabled { opacity: 0.6; cursor: default; }
+  .btn-cancel { display: inline-block; margin-top: 15px; font-size: 14px; color: #666; }
+  #resultView, #invalidView { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <img class="logo" id="logoImg" src="" alt="" style="display:none;">
+
+  <div id="confirmView" style="display:none;">
+    <h2>Unsubscribe from our newsletter?</h2>
+    <p>You are about to unsubscribe <strong id="emailDisplay"></strong>
+      from our mailing list.</p>
+    <button class="btn-confirm" id="confirmBtn">Yes, unsubscribe me</button>
+    <br>
+    <a href="#" class="btn-cancel" id="websiteLink">No, take me back to the website</a>
+  </div>
+
+  <div id="resultView">
+    <h2 id="resultTitle"></h2>
+    <p id="resultMessage"></p>
+    <p id="resubscribeRow" style="display:none;margin-top:18px;font-size:14px;">
+      Unsubscribed by mistake?
+      <a href="#" id="resubscribeLink">Click here to restore your subscription</a>.
+    </p>
+    <p id="resubscribeResult" style="display:none;margin-top:14px;font-weight:bold;"></p>
+  </div>
+
+  <div id="invalidView">
+    <h2>Invalid Request</h2>
+    <p>This unsubscribe link is missing or invalid.</p>
+  </div>
+
+  <div id="creditLine" style="display:none;font-size:11px;color:#aaa;margin-top:20px;">
+    Crafted with <a href="https://harborpress.net" target="_blank" style="color:#aaa;">HarborPress</a>
+  </div>
+</div>
+
+<script>
+  // ------------------------------------------------------------
+  // ONE LINE TO EDIT PER DEPLOYMENT: this organization's deployed
+  // CRM Web App URL (Apps Script → Deploy → Manage Deployments).
+  // ------------------------------------------------------------
+  const CRM_WEB_APP_URL = 'PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE';
+
+  function esc(str) {
+    return String(str || '').replace(/[&<>"']/g, s => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    }[s]));
+  }
+
+  function showResult(title, message) {
+    document.getElementById('confirmView').style.display = 'none';
+    document.getElementById('resultView').style.display = 'block';
+    document.getElementById('resultTitle').textContent = title;
+    document.getElementById('resultMessage').innerHTML = message;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const email = (params.get('email') || '').trim();
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!email || !emailPattern.test(email)) {
+    document.getElementById('invalidView').style.display = 'block';
+  } else {
+    document.getElementById('emailDisplay').textContent = email;
+    document.getElementById('confirmView').style.display = 'block';
+  }
+
+  // Load org branding (name, logo, website link) — best-effort.
+  fetch(CRM_WEB_APP_URL + '?action=getOrgInfo')
+    .then(r => r.json())
+    .then(info => {
+      if (info.orgName) document.title = 'Unsubscribe — ' + info.orgName;
+      if (info.logoUrl) {
+        const img = document.getElementById('logoImg');
+        img.src = info.logoUrl;
+        img.alt = info.orgName || '';
+        img.style.display = 'inline-block';
+      }
+      if (info.websiteUrl) {
+        document.getElementById('websiteLink').href = info.websiteUrl;
+      }
+      if (info.showCredit !== false) {
+        document.getElementById('creditLine').style.display = 'block';
+      }
+    })
+    .catch(() => { /* branding is best-effort; page still works without it */ });
+
+  document.getElementById('confirmBtn').addEventListener('click', function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Processing…';
+
+    fetch(CRM_WEB_APP_URL + '?action=unsubscribe&email=' + encodeURIComponent(email))
+      .then(r => r.json())
+      .then(result => {
+        if (result.success) {
+          showResult(
+            'You have been unsubscribed',
+            esc(email) + ' has been removed from our mailing list.<br>We\'re sorry to see you go.'
+          );
+          document.getElementById('resubscribeRow').style.display = 'block';
+        } else if (result.message === 'already') {
+          showResult('Already Unsubscribed', esc(email) + ' is already unsubscribed from our mailing list.');
+        } else if (result.message === 'not_found') {
+          showResult('Email Not Found', 'We could not find ' + esc(email) + ' in our mailing list.');
+        } else {
+          showResult('Error', 'Unable to process your request. Please try again later.');
+          btn.disabled = false;
+          btn.textContent = 'Yes, unsubscribe me';
+        }
+      })
+      .catch(() => {
+        showResult('Error', 'Unable to process your request. Please try again later.');
+        btn.disabled = false;
+        btn.textContent = 'Yes, unsubscribe me';
+      });
+  });
+
+  document.getElementById('resubscribeLink').addEventListener('click', function(e) {
+    e.preventDefault();
+    const link = this;
+    link.textContent = 'Restoring…';
+
+    fetch(CRM_WEB_APP_URL + '?action=resubscribe&email=' + encodeURIComponent(email))
+      .then(r => r.json())
+      .then(result => {
+        const resultEl = document.getElementById('resubscribeResult');
+        document.getElementById('resubscribeRow').style.display = 'none';
+        resultEl.style.display = 'block';
+        if (result.success) {
+          resultEl.textContent = 'Your subscription has been restored. Welcome back!';
+        } else if (result.message === 'already_subscribed') {
+          resultEl.textContent = 'You are already subscribed.';
+        } else {
+          resultEl.textContent = 'Unable to restore your subscription. Please try again later.';
+        }
+      })
+      .catch(() => {
+        const resultEl = document.getElementById('resubscribeResult');
+        document.getElementById('resubscribeRow').style.display = 'none';
+        resultEl.style.display = 'block';
+        resultEl.textContent = 'Unable to restore your subscription. Please try again later.';
+      });
+  });
+</script>
+</body>
+</html>
