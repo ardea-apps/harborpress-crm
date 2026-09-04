@@ -349,7 +349,7 @@ function renderForm(c) {
       fInput('Company',    'f_company',   'text',   '', c ? c.company   : '') +
       fInput('Job Title',  'f_jobTitle',  'text',   '', c ? c.jobTitle  : '') +
       fInput('Email *',    'f_email',     'email',  '', c ? c.email     : '') +
-      fInput('Phone',      'f_phone',     'text',   '', c ? c.phone     : '') +
+      fPhoneInput(c ? c.phone : '') +
       fInput('Zip Code',   'f_zipcode',   'text',   '', c ? c.zipcode   : '') +
       fInput('Status',     'f_status',    'select', statusOpts) +
       fInput('Events',     'f_events',    'text',   '', c ? c.events    : '') +
@@ -367,12 +367,40 @@ function fInput(label, id, type, options, value) {
   return '<div class="field"><label>' + label + '</label>' + input + '</div>';
 }
 
+function parsePhone(phone) {
+  var value = (phone || '').trim();
+  var match = value.match(/^\+(\d+)\s*\((\d+)\)\s*(.*)$/);
+  if (match) {
+    return { country: '+' + match[1], area: '(' + match[2] + ')', number: match[3].trim() };
+  }
+  // Doesn't match the expected format (e.g. older data, or blank) —
+  // put the whole thing in "number" so nothing gets lost on edit.
+  return { country: '', area: '', number: value };
+}
+
+function fPhoneInput(phone) {
+  var p = parsePhone(phone);
+  return '<div class="field"><label>Phone</label>' +
+    '<div style="display:flex;gap:6px;">' +
+      '<input id="f_phone_country" type="text" placeholder="+1" style="width:52px;" value="' + esc(p.country) + '">' +
+      '<input id="f_phone_area" type="text" placeholder="(555)" style="width:72px;" value="' + esc(p.area) + '">' +
+      '<input id="f_phone_number" type="text" placeholder="123-4567" style="flex:1;" value="' + esc(p.number) + '">' +
+    '</div></div>';
+}
+
 function cancelForm() {
   if (currentContact) renderCard(currentContact);
   else setMain('<div class="empty-state"><h3>' + esc(ORG_NAME) + '</h3><p>Search for a contact or add a new one.</p></div>');
 }
 
 // ── SAVE ────────────────────────────────────────────────────
+function combinePhone() {
+  var country = document.getElementById('f_phone_country').value.trim();
+  var area    = document.getElementById('f_phone_area').value.trim();
+  var number  = document.getElementById('f_phone_number').value.trim();
+  return [country, area, number].filter(function(p) { return p; }).join(' ');
+}
+
 function saveContact() {
   var firstName = document.getElementById('f_firstName').value.trim();
   var email     = document.getElementById('f_email').value.trim();
@@ -391,7 +419,7 @@ function saveContact() {
     company:   document.getElementById('f_company').value.trim(),
     jobTitle:  document.getElementById('f_jobTitle').value.trim(),
     email:     email,
-    phone:     document.getElementById('f_phone').value.trim(),
+    phone:     combinePhone(),
     zipcode:   document.getElementById('f_zipcode').value.trim(),
     group:     groups.join(', '),
     events:    document.getElementById('f_events').value.trim(),
