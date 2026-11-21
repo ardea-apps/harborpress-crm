@@ -124,7 +124,7 @@
   <div style="flex:1"></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button class="btn btn-secondary" onclick="downloadCSV('all')" title="All fields">&#11123; Full CSV</button>
-    <button class="btn btn-secondary" onclick="downloadCSV('namemail')" title="Name, email and phone only">&#11123; Name, Email &amp; Phone</button>
+    <button class="btn btn-secondary" onclick="downloadCSV('namemail')" title="Name and email only">&#11123; Name &amp; Email</button>
     <button class="btn btn-success" onclick="showAddForm()">+ Add Contact</button>
   </div>
 </div>
@@ -142,6 +142,14 @@
           <option value="">-- Filter by event --</option>
         </select>
         <button class="btn btn-secondary" onclick="clearEventFilter()" style="font-size:12px;padding:7px 10px;">Clear</button>
+      </div>
+      <div style="margin-top:8px;position:relative;">
+        <button type="button" class="btn btn-secondary" id="groupBtn" onclick="toggleGroupPanel()" style="width:100%;text-align:left;font-weight:400;font-size:13px;padding:7px 10px;border:1px solid #ddd;background:#fff;">-- Filter by group --</button>
+        <div id="groupPanel" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;background:#fff;border:1px solid #ddd;border-radius:6px;margin-top:2px;box-shadow:0 4px 12px rgba(0,0,0,.12);padding:8px 10px;max-height:300px;overflow-y:auto;font-size:13px;">
+          <label style="display:block;padding:4px 0;border-bottom:1px solid #eee;margin-bottom:4px;"><input type="checkbox" id="groupAll" onchange="doSearch()"> Must be in <b>all</b> selected groups</label>
+          <div id="groupList"></div>
+          <div style="padding-top:6px;"><a href="#" onclick="clearGroups();return false;" style="font-size:12px;">Uncheck all</a></div>
+        </div>
       </div>
     </div>
     <div style="padding:6px 14px;font-size:12px;color:#888;border-bottom:1px solid #eee;min-height:24px;" id="resultCount"></div>
@@ -185,26 +193,63 @@ var currentResults = [];
 function doSearch() {
   var q  = document.getElementById('searchInput').value.trim();
   var ev = document.getElementById('eventFilter') ? document.getElementById('eventFilter').value : '';
+  var gr = getSelectedGroups();
+  var all = document.getElementById('groupAll') ? document.getElementById('groupAll').checked : false;
+  updateGroupBtn();
   setResults('<div class="no-results">Searching…</div>');
   google.script.run
     .withSuccessHandler(renderResults)
     .withFailureHandler(function(e) { setResults('<div class="no-results" style="color:#c00">' + e.message + '</div>'); })
-    .searchContacts(q, ev);
+    .searchContacts(q, ev, gr, all);
 }
 
-function doEventFilter() {
-  var ev = document.getElementById('eventFilter').value;
-  var q  = document.getElementById('searchInput').value.trim();
-  setResults('<div class="no-results">Searching…</div>');
-  google.script.run
-    .withSuccessHandler(renderResults)
-    .withFailureHandler(function(e) { setResults('<div class="no-results" style="color:#c00">' + e.message + '</div>'); })
-    .searchContacts(q, ev);
-}
+function doEventFilter() { doSearch(); }
 
 function clearEventFilter() {
   document.getElementById('eventFilter').value = '';
+  clearGroups(true);
   doSearch();
+}
+
+function loadGroupFilter() {
+  var box = document.getElementById('groupList');
+  var out = '';
+  for (var i = 0; i < GROUPS.length; i++) {
+    var g = String(GROUPS[i]).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    out += '<label style="display:block;padding:3px 0;cursor:pointer;"><input type="checkbox" class="grpChk" value="' + g + '" onchange="doSearch()"> ' + g + '</label>';
+  }
+  box.innerHTML = out;
+  document.addEventListener('click', function(e) {
+    var p = document.getElementById('groupPanel');
+    if (p.style.display !== 'none' && !p.contains(e.target) && e.target.id !== 'groupBtn') p.style.display = 'none';
+  });
+}
+
+function toggleGroupPanel() {
+  var p = document.getElementById('groupPanel');
+  p.style.display = (p.style.display === 'none') ? 'block' : 'none';
+}
+
+function getSelectedGroups() {
+  var chk = document.querySelectorAll('.grpChk:checked'), r = [];
+  for (var i = 0; i < chk.length; i++) r.push(chk[i].value);
+  return r;
+}
+
+function updateGroupBtn() {
+  var sel = getSelectedGroups();
+  var all = document.getElementById('groupAll') && document.getElementById('groupAll').checked;
+  document.getElementById('groupBtn').textContent = sel.length
+    ? sel.join(all ? ' + ' : ' / ')
+    : '-- Filter by group --';
+}
+
+function clearGroups(skipSearch) {
+  var chk = document.querySelectorAll('.grpChk');
+  for (var i = 0; i < chk.length; i++) chk[i].checked = false;
+  document.getElementById('groupAll').checked = false;
+  updateGroupBtn();
+  if (!skipSearch) doSearch();
 }
 
 function loadEvents() {
@@ -349,7 +394,7 @@ function renderForm(c) {
       fInput('Company',    'f_company',   'text',   '', c ? c.company   : '') +
       fInput('Job Title',  'f_jobTitle',  'text',   '', c ? c.jobTitle  : '') +
       fInput('Email *',    'f_email',     'email',  '', c ? c.email     : '') +
-      fPhoneInput(c ? c.phone : '') +
+      fInput('Phone',      'f_phone',     'text',   '', c ? c.phone     : '') +
       fInput('Zip Code',   'f_zipcode',   'text',   '', c ? c.zipcode   : '') +
       fInput('Status',     'f_status',    'select', statusOpts) +
       fInput('Events',     'f_events',    'text',   '', c ? c.events    : '') +
@@ -367,40 +412,12 @@ function fInput(label, id, type, options, value) {
   return '<div class="field"><label>' + label + '</label>' + input + '</div>';
 }
 
-function parsePhone(phone) {
-  var value = (phone || '').trim();
-  var match = value.match(/^\+(\d+)\s*\((\d+)\)\s*(.*)$/);
-  if (match) {
-    return { country: '+' + match[1], area: '(' + match[2] + ')', number: match[3].trim() };
-  }
-  // Doesn't match the expected format (e.g. older data, or blank) —
-  // put the whole thing in "number" so nothing gets lost on edit.
-  return { country: '', area: '', number: value };
-}
-
-function fPhoneInput(phone) {
-  var p = parsePhone(phone);
-  return '<div class="field"><label>Phone</label>' +
-    '<div style="display:flex;gap:6px;">' +
-      '<input id="f_phone_country" type="text" placeholder="+1" style="width:52px;" value="' + esc(p.country) + '">' +
-      '<input id="f_phone_area" type="text" placeholder="(555)" style="width:72px;" value="' + esc(p.area) + '">' +
-      '<input id="f_phone_number" type="text" placeholder="123-4567" style="flex:1;" value="' + esc(p.number) + '">' +
-    '</div></div>';
-}
-
 function cancelForm() {
   if (currentContact) renderCard(currentContact);
   else setMain('<div class="empty-state"><h3>' + esc(ORG_NAME) + '</h3><p>Search for a contact or add a new one.</p></div>');
 }
 
 // ── SAVE ────────────────────────────────────────────────────
-function combinePhone() {
-  var country = document.getElementById('f_phone_country').value.trim();
-  var area    = document.getElementById('f_phone_area').value.trim();
-  var number  = document.getElementById('f_phone_number').value.trim();
-  return [country, area, number].filter(function(p) { return p; }).join(' ');
-}
-
 function saveContact() {
   var firstName = document.getElementById('f_firstName').value.trim();
   var email     = document.getElementById('f_email').value.trim();
@@ -419,7 +436,7 @@ function saveContact() {
     company:   document.getElementById('f_company').value.trim(),
     jobTitle:  document.getElementById('f_jobTitle').value.trim(),
     email:     email,
-    phone:     combinePhone(),
+    phone:     document.getElementById('f_phone').value.trim(),
     zipcode:   document.getElementById('f_zipcode').value.trim(),
     group:     groups.join(', '),
     events:    document.getElementById('f_events').value.trim(),
@@ -516,13 +533,13 @@ function downloadCSV(mode) {
     return;
   }
   var headers = mode === 'namemail'
-    ? ['First Name', 'Last Name', 'Email', 'Phone']
+    ? ['First Name', 'Last Name', 'Email']
     : ['Prefix','First Name','Last Name','Company','Job Title','Email','Phone','Zip Code','Group','Events','Status','Date Added','Date Unsubscribed','Last Issue','Last Sent'];
   var rows = [headers];
   for (var i = 0; i < currentResults.length; i++) {
     var c = currentResults[i];
     if (mode === 'namemail') {
-      rows.push([c.firstName, c.lastName, c.email, c.phone]);
+      rows.push([c.firstName, c.lastName, c.email]);
     } else {
       rows.push([
         c.prefix, c.firstName, c.lastName, c.company, c.jobTitle,
@@ -543,7 +560,8 @@ function downloadCSV(mode) {
   var url  = URL.createObjectURL(blob);
   var a    = document.createElement('a');
   var ev   = document.getElementById('eventFilter') ? document.getElementById('eventFilter').value : '';
-  var q    = ev || document.getElementById('searchInput').value.trim();
+  var gr   = getSelectedGroups().join('_');
+  var q    = ev || gr || document.getElementById('searchInput').value.trim();
   var suffix = (mode === 'namemail') ? '_name_email' : '_full';
   a.href     = url;
   a.download = ORG_SHORT_CODE + '_crm_' + (q ? q.replace(/\s+/g, '_') : 'all') + suffix + '_' + new Date().toISOString().slice(0,10) + '.csv';
@@ -551,7 +569,7 @@ function downloadCSV(mode) {
   URL.revokeObjectURL(url);
 }
 
-window.onload = function() { doSearch(); loadStats(); loadEvents(); };
+window.onload = function() { loadGroupFilter(); doSearch(); loadStats(); loadEvents(); };
 </script>
 </body>
 </html>

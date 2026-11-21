@@ -419,11 +419,12 @@ function loginWithPassword(password) {
 // ============================================================
 // CRM API
 // ============================================================
-function searchContacts(query, eventCode) {
+function searchContacts(query, eventCode, groupNames, matchAll) {
   const sheet = openSS().getSheetByName('Contacts');
   const data  = sheet.getDataRange().getValues();
   const q     = (query     || '').toLowerCase().trim();
   const ev    = (eventCode || '').trim();
+  const grps  = Array.isArray(groupNames) ? groupNames.map(g => String(g).trim()).filter(Boolean) : [];
   const results = [];
 
   for (let i = 1; i < data.length; i++) {
@@ -435,6 +436,17 @@ function searchContacts(query, eventCode) {
         row[C.company], row[C.group]
       ].join(' ').toLowerCase();
       if (!searchStr.includes(q)) continue;
+    }
+
+    // Group filter — exact match against the comma-separated Group cell.
+    // matchAll = true -> contact must be in ALL selected groups; false -> ANY.
+    if (grps.length) {
+      const contactGroups = (row[C.group] || '').toString()
+        .split(',').map(g => g.trim());
+      const ok = matchAll
+        ? grps.every(g => contactGroups.includes(g))
+        : grps.some(g => contactGroups.includes(g));
+      if (!ok) continue;
     }
 
     if (ev) {
