@@ -11,7 +11,8 @@ Part of the [HarborPress](https://harborpress.net) toolkit.
 - **Contact database** — searchable, taggable by group, with subscribe/unsubscribe
   status and event history, all in a Google Sheet you can open and edit directly.
   Filter by event, or by one or more groups (match any or all) alongside
-  free-text search.
+  free-text search, then export the results to CSV (full record, or
+  name, email and phone only).
 - **Email sender** — sends newsletters or targeted group emails via
   [Mailtrap](https://mailtrap.io), with dry-run and test-send safeguards
   before anything goes to real recipients.
@@ -61,7 +62,9 @@ docs/   → setup guide and full Config reference
 **v1.1** — Multi-select group filter in the CRM sidebar: check one or more
 groups (from the Config group list), match any or require all, combined with
 text search and the event filter. Update `crm.gs` and `crm_app.html` together
-and redeploy as a new version; no Config or sheet changes needed.
+and redeploy as a new version; no Config or sheet changes needed. The
+"Name & Email" CSV export is now "Name, Email & Phone" and includes a Phone
+column.
 
 **v1.0** — Initial release.
 

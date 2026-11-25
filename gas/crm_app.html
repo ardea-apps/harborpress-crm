@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- HarborPress CRM — App Page (v1.1) — group checkbox filter, Name/Email/Phone CSV — 2026-11-25 -->
 <html>
 <head>
 <meta charset="UTF-8">
@@ -124,7 +125,7 @@
   <div style="flex:1"></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button class="btn btn-secondary" onclick="downloadCSV('all')" title="All fields">&#11123; Full CSV</button>
-    <button class="btn btn-secondary" onclick="downloadCSV('namemail')" title="Name and email only">&#11123; Name &amp; Email</button>
+    <button class="btn btn-secondary" onclick="downloadCSV('namemail')" title="Name, email and phone">&#11123; Name, Email &amp; Phone</button>
     <button class="btn btn-success" onclick="showAddForm()">+ Add Contact</button>
   </div>
 </div>
@@ -533,13 +534,13 @@ function downloadCSV(mode) {
     return;
   }
   var headers = mode === 'namemail'
-    ? ['First Name', 'Last Name', 'Email']
+    ? ['First Name', 'Last Name', 'Email', 'Phone']
     : ['Prefix','First Name','Last Name','Company','Job Title','Email','Phone','Zip Code','Group','Events','Status','Date Added','Date Unsubscribed','Last Issue','Last Sent'];
   var rows = [headers];
   for (var i = 0; i < currentResults.length; i++) {
     var c = currentResults[i];
     if (mode === 'namemail') {
-      rows.push([c.firstName, c.lastName, c.email]);
+      rows.push([c.firstName, c.lastName, c.email, c.phone]);
     } else {
       rows.push([
         c.prefix, c.firstName, c.lastName, c.company, c.jobTitle,
@@ -562,7 +563,7 @@ function downloadCSV(mode) {
   var ev   = document.getElementById('eventFilter') ? document.getElementById('eventFilter').value : '';
   var gr   = getSelectedGroups().join('_');
   var q    = ev || gr || document.getElementById('searchInput').value.trim();
-  var suffix = (mode === 'namemail') ? '_name_email' : '_full';
+  var suffix = (mode === 'namemail') ? '_name_email_phone' : '_full';
   a.href     = url;
   a.download = ORG_SHORT_CODE + '_crm_' + (q ? q.replace(/\s+/g, '_') : 'all') + suffix + '_' + new Date().toISOString().slice(0,10) + '.csv';
   a.click();

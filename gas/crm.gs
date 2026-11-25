@@ -1,5 +1,5 @@
 // ============================================================
-// CRM — Web App
+// CRM — Web App (v1.1)
 // ============================================================
 // FILES REQUIRED IN APPS SCRIPT PROJECT:
 //   crm.gs             — this file (server-side logic, shared column map)
